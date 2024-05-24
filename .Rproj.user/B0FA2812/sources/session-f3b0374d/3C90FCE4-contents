@@ -1,0 +1,70 @@
+#Analise de lucratividade por Categoria
+
+# Calcular a lucratividade de diferentes categorias
+# de produtos, levando em conta o custo dos produtos e o preço de venda.
+
+#Importando as bibliotecas
+
+library(ggplot2)
+
+
+#importando os arquivos necessários.
+
+#preco de compra, e de venda
+
+notaFiscal <- readr::read_csv("data-raw/olist_order_payments_dataset.csv")
+#payment_value ou valor do pagamento - chave primaria order_id
+
+encomendasDataset <- readr:: read_csv("data-raw/olist_order_items_dataset.csv")
+#possui o valor do item e do frete
+
+categoriaProduto <- readr:: read_csv("data-raw/olist_products_dataset.csv")
+#possui o id do produt e a qual categoria ele pertence
+
+
+#juntando 
+df <- notaFiscal |> 
+  left_join(encomendasDataset,by = "order_id") |> 
+  left_join(categoriaProduto,by = "product_id")
+
+#criando uma coluna apenas para calcular o valor total do produto se baseando no valor dele + frete
+  df <- df |> 
+  mutate(total_value = price + freight_value)
+
+ precoDf <- df |> 
+    mutate(lucro = payment_value - total_value) |> 
+    select(product_category_name, total_value,payment_value, lucro) 
+    
+ lucro_por_categoria <- precoDf |> 
+   group_by(product_category_name) |> 
+   summarise(lucro_total = sum(lucro))
+ 
+##limpando dados vazios
+ lucro_por_categoria <- na.omit(lucro_por_categoria)
+
+ # Ordenando o dataframe pelo lucro total, do mais lucrativo para o menos lucrativo
+ lucro_por_categoria <- lucro_por_categoria |> 
+   arrange(desc(lucro_total))
+ 
+ # Filtrar as top 10 categorias com os maiores lucros
+ top_10_lucro <- lucro_por_categoria %>%
+   slice_max(order_by = lucro_total, n = 10)
+ 
+ # Filtrar as top 5 categorias com os maiores prejuízos
+ top_5_prejuizo <- lucro_por_categoria %>%
+   slice_min(order_by = lucro_total, n = 5)
+ 
+ # Combinar os top 10 lucros com top 5 prejuízos
+ top_lucro_prejuizo <- rbind(top_10_lucro, top_5_prejuizo)
+ 
+ # Criar o gráfico de barras
+ ggplot(top_lucro_prejuizo, aes(x = reorder(product_category_name, lucro_total), y = lucro_total, fill = lucro_total > 0)) +
+   geom_bar(stat = "identity", color = "black") +
+   coord_flip() +
+   theme_minimal() +
+   labs(x = "Categoria de Produto", y = "Lucro/Prejuízo Total", fill = "Lucro/Prejuízo") +
+   scale_fill_manual(values = c("red", "green"), labels = c("Prejuízo", "Lucro")) +
+   geom_text(aes(label = scales::comma(lucro_total), hjust = ifelse(lucro_total > 0, 1.1, -0.1)), color = "black", size = 3) +
+   ggtitle("Top 10 Lucros e Top 5 Prejuízos por Categoria de Produto")
+
+ 

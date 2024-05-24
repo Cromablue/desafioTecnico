@@ -1,0 +1,56 @@
+# Importando bibliotecas necessárias
+library(readr)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+
+# Carregando os dados
+listaDeEntregas <- readr::read_csv("data-raw/olist_orders_dataset.csv")
+listaAvaliacao <- readr::read_csv("data-raw/olist_order_reviews_dataset.csv")
+
+# Juntando os dataframes
+df <- listaDeEntregas |> 
+  left_join(listaAvaliacao, by = "order_id")
+
+# Tratando os dados e criando um dataframe apenas com o que vai ser necessário
+# Removendo NAs
+df <- na.omit(df)
+
+# Resumindo o dataframe
+dfTratado <- df |> 
+  select(order_estimated_delivery_date, order_delivered_customer_date, review_score)
+
+# Função para calcular a diferença em dias entre dois timestamps
+calcular_diferenca_dias <- function(dataframe, coluna_inicio, coluna_fim) {
+  dataframe |> 
+    mutate(dias_ate_entrega = as.integer(difftime(as.Date({{coluna_fim}}), as.Date({{coluna_inicio}}), units = "days")))
+}
+
+# Aplicando a função pra calcular os dias de atraso ao dataframe
+dfTratado <- calcular_diferenca_dias(dfTratado, order_estimated_delivery_date, order_delivered_customer_date)
+
+# Removendo linhas onde dias_ate_entrega é menor que 1
+dfTratado <- dfTratado |> 
+  filter(dias_ate_entrega >= 1)
+
+# Categorizar as avaliações
+dfTratado <- dfTratado |> 
+  mutate(review_category = case_when(
+    review_score <= 2 ~ "0-2 estrelas",
+    review_score == 3 ~ "3 estrelas",
+    review_score >= 4 ~ "4-5 estrelas"
+  ))
+
+# Dataframe com os dados necessários
+df_atraso <- dfTratado |> 
+  select(dias_ate_entrega, review_category)
+
+# Criando o gráfico de barras empilhadas
+ggplot(df_atraso, aes(x = dias_ate_entrega, fill = review_category)) +
+  geom_bar(position = "stack") +
+  scale_fill_manual(values = c("0-2 estrelas" = "red", "3 estrelas" = "yellow", "4-5 estrelas" = "green")) +
+  labs(title = "Volume de Avaliações por Dias de Atraso",
+       x = "Dias de Atraso",
+       y = "Volume de Avaliações",
+       fill = "Categoria de Avaliação") +
+  theme_minimal()

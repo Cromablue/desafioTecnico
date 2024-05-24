@@ -1,0 +1,15 @@
+# Definindo a semente para reprodutibilidade
+set.seed(123)
+
+# Gerando a variável "dias de atraso" com 300 observações
+dias_atraso <- rnorm(300, mean = 10, sd = 5) # Média de 10 dias, desvio padrão de 5 dias
+
+# Criando uma relação linear entre "dias de atraso" e "avaliação"
+# Vamos assumir uma relação negativa, onde mais dias de atraso resultam em uma avaliação menor
+avaliacao <- 5 - 0.3 * dias_atraso + rnorm(300, mean = 0, sd = 0.5) # Incluindo um erro aleatório
+
+# crie um data frame com as duas variáveis
+
+df <- data.frame(dias_atraso, avaliacao)
+
+plot(df)

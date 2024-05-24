@@ -1,0 +1,65 @@
+# Passo 1 - Importar as base de dados
+library(readr)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+
+products <- read_csv("data-raw/olist_products_dataset.csv")
+str(products)
+
+order_items <- read_csv("data-raw/olist_order_items_dataset.csv")
+str(order_items)
+
+order_payments <- read_csv("data-raw/olist_order_payments_dataset.csv")
+str(order_payments)
+
+order <- read_csv("data-raw/olist_orders_dataset.csv")
+str(order)
+
+# Passo 2 - fazer o join entre as bases de dados e substituir os valores NA por "não identificado"
+df <- order_items %>%
+  left_join(products, by = "product_id") %>%
+  left_join(order, by = "order_id") %>%
+  left_join(order_payments, by = "order_id") %>%
+  mutate(product_category_name = ifelse(is.na(product_category_name), "não identificado", product_category_name))
+
+# Tratar a variável order_approved_at e criar as variáveis mês, trimestre e ano
+df <- df %>%
+  mutate(order_approved_at = as.Date(order_approved_at)) %>%
+  mutate(mes = lubridate::month(order_approved_at),
+         trimestre = lubridate::quarter(order_approved_at),
+         ano = lubridate::year(order_approved_at))
+
+# Passo 3 - Calcular o volume de vendas por categoria por período (mensal, trimestral)
+vendasCategoria <- df %>%
+  group_by(ano, trimestre, mes, product_category_name) %>%
+  summarise(volume_vendas = sum(price, na.rm = TRUE)) %>%
+  arrange(ano, trimestre, mes, desc(volume_vendas))
+
+# Passo 4 - Identificar as categorias com maior volume de vendas
+porN <- vendasCategoria %>%
+  group_by(ano, trimestre, mes) %>%
+  top_n(1, volume_vendas) %>%
+  arrange(desc(volume_vendas)) %>%
+  select(mes, product_category_name, volume_vendas) %>%
+  head(10)
+
+# Gráficos, retirando a notação científica do total de vendas ao longo dos anos
+df %>%
+  group_by(ano) %>%
+  summarise(volume_vendas = sum(price, na.rm = TRUE)) %>%
+  ggplot(aes(x = ano, y = volume_vendas)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Volume de vendas ao longo dos anos",
+       x = "Ano", y = "Volume de vendas")
+
+# Análise de sazonalidade de vendas
+df %>%
+  group_by(ano, mes) %>%
+  summarise(volume_vendas = sum(price, na.rm = TRUE)) %>%
+  ggplot(aes(x = mes, y = volume_vendas, color = as.factor(ano))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Volume de vendas ao longo dos meses",
+       x = "Mês", y = "Volume de vendas")

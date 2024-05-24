@@ -1,0 +1,27 @@
+{
+    "id": "ABD7E2AA",
+    "path": "~/Rstudio/Desafio-Bemol/data-raw/analiseLogistica.R",
+    "project_path": "data-raw/analiseLogistica.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1716483339794.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled2",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "50,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1716483349,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1716576493887,
+    "read_only": false,
+    "read_only_alternatives": []
+}

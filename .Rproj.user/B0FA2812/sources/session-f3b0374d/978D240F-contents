@@ -1,0 +1,86 @@
+# Carregar Bibliotecas Necessárias
+library(dplyr)
+library(ggplot2)
+library(readr)
+
+# Carregar os datasets
+customers <- read_csv('data-raw/olist_customers_dataset.csv')
+geolocation <- read_csv('data-raw/olist_geolocation_dataset.csv')
+order_items <- read_csv('data-raw/olist_order_items_dataset.csv')
+order_payments <- read_csv('data-raw/olist_order_payments_dataset.csv')
+order_reviews <- read_csv('data-raw/olist_order_reviews_dataset.csv')
+orders <- read_csv('data-raw/olist_orders_dataset.csv')
+products <- read_csv('data-raw/olist_products_dataset.csv')
+sellers <- read_csv('data-raw/olist_sellers_dataset.csv')
+product_category_name_translation <- read_csv('data-raw/product_category_name_translation.csv')
+
+# Combinar dados de pedidos e clientes
+orders_customers <- orders %>%
+  inner_join(customers, by = c("customer_id" = "customer_id"))
+
+# Combinar dados de itens do pedido e produtos
+order_items_products <- order_items %>%
+  inner_join(products, by = c("product_id" = "product_id"))
+
+# Combinar todas as informações em uma única tabela
+orders_items_customers <- orders_customers %>%
+  inner_join(order_items_products, by = c("order_id" = "order_id"))
+
+orders_items_payments <- orders_items_customers %>%
+  inner_join(order_payments, by = c("order_id" = "order_id"))
+
+# Converter a coluna de datas para o formato Date
+orders_items_payments$order_purchase_timestamp <- as.Date(orders_items_payments$order_purchase_timestamp)
+
+# Calcular o volume de vendas ao longo do tempo (agregado por mês)
+volume_vendas <- orders_items_payments %>%
+  group_by(month = format(order_purchase_timestamp, "%Y-%m")) %>%
+  summarise(total_price = sum(price)) %>%
+  arrange(month)
+
+# Calcular o número de novos clientes por mês
+novos_clientes <- orders_items_payments %>%
+  group_by(customer_unique_id) %>%
+  summarise(first_purchase_date = min(order_purchase_timestamp)) %>%
+  mutate(month = format(first_purchase_date, "%Y-%m")) %>%
+  group_by(month) %>%
+  summarise(new_customers = n()) %>%
+  arrange(month)
+
+# Converter a coluna de meses para o formato Date
+volume_vendas$month <- as.Date(paste0(volume_vendas$month, "-01"))
+novos_clientes$month <- as.Date(paste0(novos_clientes$month, "-01"))
+
+# Filtrar os dados por ano
+volume_vendas_2016 <- volume_vendas %>% filter(format(month, "%Y") == "2016")
+volume_vendas_2017 <- volume_vendas %>% filter(format(month, "%Y") == "2017")
+volume_vendas_2018 <- volume_vendas %>% filter(format(month, "%Y") == "2018")
+
+novos_clientes_2016 <- novos_clientes %>% filter(format(month, "%Y") == "2016")
+novos_clientes_2017 <- novos_clientes %>% filter(format(month, "%Y") == "2017")
+novos_clientes_2018 <- novos_clientes %>% filter(format(month, "%Y") == "2018")
+
+# Visualização do Volume de Vendas por Ano
+ggplot(volume_vendas, aes(x = month, y = total_price)) +
+  geom_line(color = "blue") +
+  labs(title = "Volume de Vendas ao Longo do Tempo", x = "Mês", y = "Volume de Vendas") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Visualização da Aquisição de Novos Clientes por Ano
+ggplot(novos_clientes, aes(x = month, y = new_customers)) +
+  geom_line(color = "green") +
+  labs(title = "Aquisição de Novos Clientes ao Longo do Tempo", x = "Mês", y = "Número de Novos Clientes") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Mostrar as tabelas de volume de vendas e novos clientes por ano
+volume_vendas_2016
+volume_vendas_2017
+volume_vendas_2018
+
+novos_clientes_2016
+novos_clientes_2017
+novos_clientes_2018

@@ -1,0 +1,44 @@
+library(dplyr)
+library(readr)
+library(ggplot2)
+
+# Carregar os datasets
+customers <- read_csv('data-raw/olist_customers_dataset.csv')
+geolocation <- read_csv('data-raw/olist_geolocation_dataset.csv')
+order_items <- read_csv('data-raw/olist_order_items_dataset.csv')
+order_payments <- read_csv('data-raw/olist_order_payments_dataset.csv')
+order_reviews <- read_csv('data-raw/olist_order_reviews_dataset.csv')
+orders <- read_csv('data-raw/olist_orders_dataset.csv')
+products <- read_csv('data-raw/olist_products_dataset.csv')
+sellers <- read_csv('data-raw/olist_sellers_dataset.csv')
+category_translation <- read_csv('data-raw/product_category_name_translation.csv')
+
+
+# Merge order_items with products to get product category
+order_items_products <- merge(order_items, products, by = "product_id", all.x = TRUE)
+
+# Merge the result with orders to include order information
+order_items_products_orders <- merge(order_items_products, orders, by = "order_id", all.x = TRUE)
+
+# Calcular o lucro por item
+order_items_products_orders <- order_items_products_orders %>%
+  mutate(profit = price - cost)
+
+# Agrupar por categoria de produto e calcular a lucratividade total
+profit_by_category <- order_items_products_orders %>%
+  group_by(product_category_name) %>%
+  summarise(total_profit = sum(profit, na.rm = TRUE))
+
+# Traduzir os nomes das categorias para inglês
+profit_by_category <- merge(profit_by_category, category_translation, by = "product_category_name", all.x = TRUE)
+
+# Ordenar por lucratividade
+profit_by_category <- profit_by_category %>%
+  arrange(desc(total_profit))
+
+# Plotar os resultados
+ggplot(profit_by_category, aes(x = reorder(product_category_name_english, -total_profit), y = total_profit)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Total Profit by Product Category", x = "Product Category", y = "Total Profit") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+

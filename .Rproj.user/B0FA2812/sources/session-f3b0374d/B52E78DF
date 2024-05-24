@@ -1,0 +1,27 @@
+{
+    "id": "B52E78DF",
+    "path": "~/Rstudio/Desafio-Bemol/data-raw/performaceVendas.R",
+    "project_path": "data-raw/performaceVendas.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1716483029099.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled2",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "72,29",
+        "scrollLine": "57"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1716483050,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1716575679411,
+    "read_only": false,
+    "read_only_alternatives": []
+}

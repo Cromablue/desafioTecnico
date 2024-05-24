@@ -1,0 +1,50 @@
+#importando biblitecas necessárias
+library(readr)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+
+#problema:
+# Avaliar o desempenho dAe diferentes transportadoras com base 
+# no tempo de entrega e na satisfação do cliente. Requisitos: avaliação, tempo de espera.
+
+listaDeEntregas <- readr::read_csv("data-raw/olist_orders_dataset.csv")
+##quando foi aprovado e quando foi enviado.
+
+listaAvaliacao <- readr::read_csv("data-raw/olist_order_reviews_dataset.csv")
+##comentario//avaiacao
+
+
+df <- listaDeEntregas |> 
+  left_join(listaAvaliacao, by = "order_id") 
+
+
+#tratando os dados e criando um dataframe apenas com o que vai ser necessario
+
+df <- na.omit(df)
+
+dfTratado <- df |> 
+  select(order_purchase_timestamp,order_delivered_customer_date,review_score)
+
+
+# Função para calcular a diferença em dias entre dois timestamps
+calcular_diferenca_dias <- function(dataframe, coluna_inicio, coluna_fim) {
+  dataframe  |> 
+    mutate(dias_ate_entrega = ifelse(!is.na({{coluna_fim}}), as.integer(as.Date({{coluna_fim}}) - as.Date({{coluna_inicio}})), "Não Entregue"))
+}
+
+# Aplicando a função ao dataframe
+dfTratado <- calcular_diferenca_dias(dfTratado, order_purchase_timestamp, order_delivered_customer_date)
+
+dfTratado <- dfTratado |> 
+  mutate(intervalo_dias = cut(dias_ate_entrega, breaks = seq(0, max(dias_ate_entrega) + 3, by = 3), include.lowest = TRUE)) %>%
+  group_by(intervalo_dias) |> 
+  summarise(media_avaliacao = mean(review_score, na.rm = TRUE))
+
+# Gráfico de barras da média da avaliação do cliente em intervalos de 20 dias
+ggplot(data = dfTratado, aes(x = intervalo_dias, y = media_avaliacao)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Intervalo de Dias até a Entrega", y = "Média da Avaliação do Cliente") +
+  ggtitle("Média da Avaliação do Cliente por Intervalo de Dias até a Entrega") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotaciona os rótulos do eixo x para melhor legibilidade

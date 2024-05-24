@@ -1,0 +1,92 @@
+# Passo 1 - Importar as bases de dados
+library(readr)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(scales)  # Para formatação do eixo Y
+
+  products <- read_csv("data-raw/olist_products_dataset.csv")
+  order_items <- read_csv("data-raw/olist_order_items_dataset.csv")
+  order_payments <- read_csv("data-raw/olist_order_payments_dataset.csv")
+  order <- read_csv("data-raw/olist_orders_dataset.csv")
+
+# Passo 2 - Fazer o join entre as bases de dados e substituir os valores NA por "não identificado"
+df <- order_items %>%
+  left_join(products, by = "product_id") |> 
+  left_join(order, by = "order_id")  |> 
+  left_join(order_payments, by = "order_id")  |> 
+  mutate(product_category_name = ifelse(is.na(product_category_name), "não identificado", product_category_name))
+
+# Tratar a variável order_approved_at e criar as variáveis mês, trimestre e ano, filtrando NAs em ano
+df <- df |> 
+  mutate(order_approved_at = as.Date(order_approved_at)) |> 
+  mutate(mes = lubridate::month(order_approved_at),
+         trimestre = lubridate::quarter(order_approved_at),
+         ano = lubridate::year(order_approved_at)) |> 
+  filter(!is.na(ano))
+
+# Análise Trimestral
+# Calcular o volume de vendas por categoria, por trimestre e por ano
+vendasCategoriaTrimestre <- df |> 
+  group_by(ano, trimestre, product_category_name) |> 
+  summarise(volume_vendas = sum(price, na.rm = TRUE)) |> 
+  arrange(ano, trimestre, desc(volume_vendas))
+
+# Filtrar as 10 categorias com maior volume de vendas total para análise trimestral
+top_categorias_trimestre <- vendasCategoriaTrimestre |> 
+  group_by(product_category_name) |> 
+  summarise(volume_total = sum(volume_vendas)) |> 
+  top_n(10, volume_total) |> 
+  pull(product_category_name)
+
+#filtra o dataframe das vendas por categoria, deixando apenas as categorias que 
+#aparecem no vetor de strings top categorias trimestre
+vendasCategoriaTrimestre_top <- vendasCategoriaTrimestre |> 
+  filter(product_category_name %in% top_categorias_trimestre)
+
+# Criar o gráfico trimestral
+grafico_trimestral <- ggplot(vendasCategoriaTrimestre_top, aes(x = trimestre, y = volume_vendas, color = product_category_name)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ ano, scales = "free_y") +
+  labs(title = "Volume de vendas por trimestre e categoria (Top 10 categorias)",
+       x = "Trimestre", y = "Volume de vendas",
+       color = "Categoria do Produto") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma)
+
+# Exibir o gráfico trimestral
+print(grafico_trimestral)
+
+# Análise Mensal
+# Calcular o volume de vendas por categoria, por mês e por ano
+vendasCategoriaMes <- df %>%
+  group_by(ano, mes, product_category_name) %>%
+  summarise(volume_vendas = sum(price, na.rm = TRUE)) %>%
+  arrange(ano, mes, desc(volume_vendas))
+
+# Filtrar as 10 categorias com maior volume de vendas total para análise mensal
+top_categorias_mes <- vendasCategoriaMes %>%
+  group_by(product_category_name) %>%
+  summarise(volume_total = sum(volume_vendas)) %>%
+  top_n(10, volume_total) %>%
+  pull(product_category_name)
+
+vendasCategoriaMes_top <- vendasCategoriaMes %>%
+  filter(product_category_name %in% top_categorias_mes)
+
+# Criar o gráfico mensal
+grafico_mensal <- ggplot(vendasCategoriaMes_top, aes(x = mes, y = volume_vendas, color = product_category_name)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ ano, scales = "free_y") +
+  labs(title = "Volume de vendas por mês e categoria (Top 10 categorias)",
+       x = "Mês", y = "Volume de vendas",
+       color = "Categoria do Produto") +
+  theme_minimal() +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +
+  scale_y_continuous(labels = scales::comma)
+
+# Exibir o gráfico mensal
+print(grafico_mensal)
+
